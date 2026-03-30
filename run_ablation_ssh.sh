@@ -56,7 +56,7 @@ GRAD_ACCUM=2           # down from 4, keeps similar effective batch
 TOTAL_STEPS=20000
 NUM_GPUS=8
 
-# ── Load W&B credentials from .env ───────────────────────────────────
+# ── Load credentials from .env ───────────────────────────────────────
 source "$(dirname "$0")/../.env" 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────────────
@@ -70,49 +70,6 @@ if [[ ${#HOSTS[@]} -ne ${#ATTENTION_TYPES[@]} ]]; then
     exit 1
 fi
 
-# ── Write the remote runner script ───────────────────────────────────
-cat << 'REMOTE_SCRIPT' > /tmp/_slay_remote.sh
-#!/usr/bin/env bash
-set -euo pipefail
-REPO_DIR="$1"; ATTN="$2"; RUN_NAME="$3"
-CONTEXT_LEN="$4"; EMBED_DIM="$5"; N_LAYERS="$6"; N_HEADS="$7"
-LR="$8"; BATCH_SIZE="$9"; GRAD_ACCUM="${10}"; TOTAL_STEPS="${11}"; NUM_GPUS="${12}"
-export WANDB_API_KEY="${13}"
-export WANDB_ENTITY="${14}"
-export WANDB_PROJECT="${15}"
-
-SESSION="slay_${ATTN}"
-
-cd "$REPO_DIR"
-
-# Kill any existing session with the same name
-tmux kill-session -t "$SESSION" 2>/dev/null || true
-
-# Launch inside tmux — job survives SSH disconnection
-tmux new-session -d -s "$SESSION" bash -c "
-    cd $REPO_DIR
-        export WANDB_API_KEY='${13}'
-    export WANDB_ENTITY='${14}'
-    export WANDB_PROJECT='${15}'
-    export PATH="\$HOME/.local/bin:/usr/local/bin:\$PATH"
-    deepspeed --num_gpus=$NUM_GPUS main.py \
-        --attention $ATTN \
-        --context-len $CONTEXT_LEN \
-        --embed-dim $EMBED_DIM \
-        --n-layers $N_LAYERS \
-        --n-heads $N_HEADS \
-        --lr $LR \
-        --batch-size $BATCH_SIZE \
-        --gradient-accumulation-steps $GRAD_ACCUM \
-        --total-steps $TOTAL_STEPS \
-        --run-name $RUN_NAME \
-    2>&1 | tee ~/slay_${ATTN}.log; exec bash
-"
-
-echo "Job launched in tmux session '$SESSION'"
-echo "To monitor: ssh <host> then: tmux attach -t $SESSION"
-REMOTE_SCRIPT
-
 echo "Dispatching ${#HOSTS[@]} ablation jobs..."
 echo ""
 
@@ -120,16 +77,41 @@ for i in "${!HOSTS[@]}"; do
     HOST="${HOSTS[$i]}"
     ATTN="${ATTENTION_TYPES[$i]}"
     RUN_NAME="ablation_${ATTN}_$(date +%Y%m%d_%H%M%S)"
+    SESSION="slay_${ATTN}"
 
-    scp $SSH_OPTS /tmp/_slay_remote.sh "${HOST}:/tmp/_slay_remote.sh" > /dev/null 2>&1
+    # Build a self-contained run script with all variables already substituted
+    cat > /tmp/_slay_run_${ATTN}.sh << EOF
+#!/usr/bin/env bash
+export PATH="\$HOME/.local/bin:/usr/local/bin:\$PATH"
+export WANDB_API_KEY="${WANDB_API_KEY:-}"
+export WANDB_ENTITY="${WANDB_ENTITY:-}"
+export WANDB_PROJECT="${WANDB_PROJECT:-}"
+export HF_TOKEN="${HF_TOKEN:-}"
+cd ${REMOTE_REPO_DIR}
+deepspeed --num_gpus=${NUM_GPUS} main.py \\
+    --attention ${ATTN} \\
+    --context-len ${CONTEXT_LEN} \\
+    --embed-dim ${EMBED_DIM} \\
+    --n-layers ${N_LAYERS} \\
+    --n-heads ${N_HEADS} \\
+    --lr ${LR} \\
+    --batch-size ${BATCH_SIZE} \\
+    --gradient-accumulation-steps ${GRAD_ACCUM} \\
+    --total-steps ${TOTAL_STEPS} \\
+    --run-name ${RUN_NAME} \\
+    2>&1 | tee ~/slay_${ATTN}.log
+EOF
 
-    ssh $SSH_OPTS "$HOST" bash /tmp/_slay_remote.sh \
-        "$REMOTE_REPO_DIR" "$ATTN" "$RUN_NAME" \
-        "$CONTEXT_LEN" "$EMBED_DIM" "$N_LAYERS" "$N_HEADS" \
-        "$LR" "$BATCH_SIZE" "$GRAD_ACCUM" "$TOTAL_STEPS" "$NUM_GPUS" \
-        "${WANDB_API_KEY:-}" "${WANDB_ENTITY:-}" "${WANDB_PROJECT:-}"
+    # Copy the run script to the remote instance
+    scp $SSH_OPTS /tmp/_slay_run_${ATTN}.sh "${HOST}:/tmp/_slay_run_${ATTN}.sh" > /dev/null 2>&1
 
-    echo "  [$((i+1))/${#HOSTS[@]}] $HOST → --attention $ATTN  (tmux: slay_${ATTN})"
+    # Launch in a tmux session on the remote
+    ssh $SSH_OPTS "$HOST" "
+        tmux kill-session -t ${SESSION} 2>/dev/null || true
+        tmux new-session -d -s ${SESSION} bash /tmp/_slay_run_${ATTN}.sh
+    "
+
+    echo "  [$((i+1))/${#HOSTS[@]}] $HOST → --attention $ATTN  (tmux: ${SESSION})"
 done
 
 echo ""
