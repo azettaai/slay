@@ -94,7 +94,8 @@ tmux new-session -d -s "$SESSION" bash -c "
         export WANDB_API_KEY='${13}'
     export WANDB_ENTITY='${14}'
     export WANDB_PROJECT='${15}'
-    python3 -m deepspeed --num_gpus=$NUM_GPUS main.py \
+    export PATH="\$HOME/.local/bin:/usr/local/bin:\$PATH"
+    deepspeed --num_gpus=$NUM_GPUS main.py \
         --attention $ATTN \
         --context-len $CONTEXT_LEN \
         --embed-dim $EMBED_DIM \
