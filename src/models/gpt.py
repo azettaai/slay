@@ -39,16 +39,20 @@ class TinyGPT(nn.Module):
         
         dropout = config.get('dropout', 0.1)
         
-        # Collect attention-specific kwargs from config
-        attn_kwargs = {
+        # Collect attention-specific kwargs from config, filtered to what the class accepts
+        import inspect
+        _all_attn_kwargs = {
             'num_rff_features': config.get('num_rff_features'),
             'num_prf_features': config.get('num_prf_features'),
             'num_poly_features': config.get('num_poly_features'),
             'num_quadrature_nodes': config.get('num_quadrature_nodes'),
             'epsilon': config.get('epsilon'),
         }
-        # Filter out None values just in case
-        attn_kwargs = {k: v for k, v in attn_kwargs.items() if v is not None}
+        _accepted = inspect.signature(attention_class.__init__).parameters
+        attn_kwargs = {
+            k: v for k, v in _all_attn_kwargs.items()
+            if v is not None and k in _accepted
+        }
         
         self.tok = nn.Embedding(vocab_size, embed_dim)
         self.pos = nn.Embedding(context_len, embed_dim)
