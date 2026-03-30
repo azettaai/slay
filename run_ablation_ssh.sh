@@ -11,7 +11,7 @@
 #   3. Run: bash run_ablation_ssh.sh
 #
 # To check on a running job:
-#   ssh user@instance-ip
+#   ssh ubuntu@<ip>
 #   tmux attach -t slay_yat          # replace with attention type
 #
 # Each remote instance must already have the repo + dependencies set up.
@@ -22,10 +22,10 @@ set -euo pipefail
 
 # ── Configure your instances here ────────────────────────────────────
 HOSTS=(
-    "user@instance-1-ip"
-    "user@instance-2-ip"
-    "user@instance-3-ip"
-    "user@instance-4-ip"
+    "ubuntu@185.216.20.59"
+    "ubuntu@38.128.233.103"
+    "ubuntu@38.128.233.144"
+    "ubuntu@38.128.233.111"
     # "user@instance-5-ip"
     # "user@instance-6-ip"
     # "user@instance-7-ip"
@@ -137,7 +137,7 @@ echo ""
 echo "All jobs launched in tmux sessions. Safe to close your laptop."
 echo ""
 echo "To check on a job:"
-echo "  ssh <host>"
+echo "  ssh ubuntu@<ip>"
 echo "  tmux attach -t slay_<attention>    # e.g. tmux attach -t slay_yat"
 echo ""
 echo "Logs are also saved to ~/slay_<attention>.log on each instance."
