@@ -51,8 +51,8 @@ EMBED_DIM=1024
 N_LAYERS=24
 N_HEADS=16
 LR=2e-4
-BATCH_SIZE=32          # up from 8, H100s have headroom
-GRAD_ACCUM=2           # down from 4, keeps similar effective batch
+BATCH_SIZE=16
+GRAD_ACCUM=4
 TOTAL_STEPS=20000
 NUM_GPUS=8
 
