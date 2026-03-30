@@ -60,8 +60,20 @@ sudo pip3 install -q --upgrade pip
 sudo pip3 install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 sudo pip3 install -q deepspeed wandb transformers datasets
 
+# Pre-download datasets to avoid rate limits during training
+echo "[4/5] Pre-downloading datasets..."
+python3 - << 'PYEOF'
+import os
+os.environ["HF_TOKEN"] = os.environ.get("HF_TOKEN", "")
+from datasets import load_dataset
+print("  Downloading wikitext validation split...")
+load_dataset("wikitext", "wikitext-103-v1", split="validation")
+print("  Downloading fineweb-edu sample (streaming — no download needed)...")
+print("  Done.")
+PYEOF
+
 # Verify GPU + DeepSpeed
-echo "[4/4] Verifying setup..."
+echo "[5/5] Verifying setup..."
 python3 -c "import torch; print(f'PyTorch {torch.__version__} | CUDA: {torch.cuda.is_available()} | GPUs: {torch.cuda.device_count()}')"
 python3 -c "import deepspeed; print(f'DeepSpeed {deepspeed.__version__}')"
 ds_report 2>/dev/null | grep -E "ops|cuda" | head -10 || true
