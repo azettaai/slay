@@ -26,7 +26,7 @@ if [[ $# -ge 1 && "$1" != "--local" ]]; then
 
     echo "Setting up $HOST..."
     scp $SSH_OPTS "$0" "${HOST}:/tmp/setup_instance.sh"
-    ssh $SSH_OPTS "$HOST" bash /tmp/setup_instance.sh --local
+    ssh $SSH_OPTS "$HOST" "HF_TOKEN=${HF_TOKEN:-} bash /tmp/setup_instance.sh --local"
     echo "Done: $HOST"
     exit 0
 fi
