@@ -32,10 +32,11 @@ class TinyGPT(nn.Module):
         attention_class = ATTENTION_CLASSES.get(attention_type, FastAttention)
         
         # Use NovelBlock for Yat variants, GPT2Block for others
-        if attention_type in NOVEL_ACTIVATION_TYPES:
-            block_class = NovelBlock
-        else:
-            block_class = GPT2Block
+        # if attention_type in NOVEL_ACTIVATION_TYPES:
+        #     block_class = NovelBlock
+        # else:
+        #     block_class = GPT2Block
+        block_class = GPT2Block
         
         dropout = config.get('dropout', 0.1)
         
@@ -127,10 +128,11 @@ class TinyGPT(nn.Module):
                 x = checkpoint(block, x, use_reentrant=False)
             else:
                 x = block(x)
-        if self.attention_type in NOVEL_ACTIVATION_TYPES:
-            pass
-        else:
-            x = self.ln(x)
+        # if self.attention_type in NOVEL_ACTIVATION_TYPES:
+        #     pass
+        # else:
+        #     x = self.ln(x)
+        x = self.ln(x)
                 
 
         logits = self.head(x)
