@@ -8,7 +8,8 @@
 
 set -euo pipefail
 
-REPO_URL="https://github.com/azettaai/slay.git"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+REPO_URL="https://${GITHUB_TOKEN}@github.com/azettaai/slay.git"
 REPO_DIR="$HOME/slay"
 BRANCH="slay-ablation-ICML-rebuttal"
 
@@ -18,7 +19,7 @@ if [[ $# -ge 1 && "$1" != "--local" ]]; then
     SSH_OPTS="-o StrictHostKeyChecking=no"
     echo "Setting up $HOST..."
     scp $SSH_OPTS "$0" "${HOST}:/tmp/setup_instance.sh"
-    ssh $SSH_OPTS "$HOST" "HF_TOKEN=${HF_TOKEN:-} bash /tmp/setup_instance.sh --local"
+    ssh $SSH_OPTS "$HOST" "HF_TOKEN=${HF_TOKEN:-} GITHUB_TOKEN=${GITHUB_TOKEN:-} bash /tmp/setup_instance.sh --local"
     echo "Done: $HOST"
     exit 0
 fi
