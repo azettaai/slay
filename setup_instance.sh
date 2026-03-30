@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO_URL="https://github.com/azettaai/slay.git"
 REPO_DIR="$HOME/slay"
-BRANCH="slay-ablation-ICML-rebuttal"
+BRANCH="master"
 
 # ── If a remote host is given, copy this script and run it there ─────
 if [[ $# -ge 1 && "$1" != "--local" ]]; then
