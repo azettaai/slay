@@ -22,24 +22,24 @@ HOSTS=(
     "user@instance-2-ip"
     "user@instance-3-ip"
     "user@instance-4-ip"
-    "user@instance-5-ip"
-    "user@instance-6-ip"
-    "user@instance-7-ip"
+    # "user@instance-5-ip"
+    # "user@instance-6-ip"
+    # "user@instance-7-ip"
 )
 
 SSH_KEY=""           # e.g. ~/.ssh/my_key.pem  — leave empty to use ssh default
 REMOTE_REPO_DIR="~/slay"   # path to repo on remote instances
 LOG_DIR="./logs"           # local dir to collect logs
 
-# ── Attention types — one per host (7 ablations) ─────────────────────
+# ── Attention types — one per host (4 ablations) ─────────────────────
 ATTENTION_TYPES=(
     "yat"
-    "yat-spherical"
     "standard"
     "performer"
-    "linear"
-    "cosformer"
     "yat-performer"
+    # "yat-spherical"
+    # "linear"
+    # "cosformer"
 )
 
 # ── Shared training hyperparameters ──────────────────────────────────

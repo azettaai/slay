@@ -277,7 +277,8 @@ def main():
         if config['use_wandb']:
             run_name = config['run_name'] or f"{config['attention_type']}_{int(time.time())}"
             wandb.init(
-                project=config['wandb_project'], 
+                project=config['wandb_project'],
+                entity="irf-sic",
                 name=run_name,
                 config=experiment_config
             )
