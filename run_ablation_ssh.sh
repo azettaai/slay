@@ -3,12 +3,16 @@
 # SLAY Attention Ablation — SSH Dispatcher
 #
 # Launches one attention ablation per remote GPU instance via SSH.
-# Each instance runs an independent deepspeed job on 8 GPUs.
+# Each job runs inside a tmux session — safe to close your laptop.
 #
 # Usage:
 #   1. Fill in HOSTS below with your instance IPs/hostnames.
 #   2. Set SSH_KEY to your private key path (or leave empty for default).
 #   3. Run: bash run_ablation_ssh.sh
+#
+# To check on a running job:
+#   ssh user@instance-ip
+#   tmux attach -t slay_yat          # replace with attention type
 #
 # Each remote instance must already have the repo + dependencies set up.
 # Run setup_instance.sh on each host first if starting fresh.
@@ -27,11 +31,10 @@ HOSTS=(
     # "user@instance-7-ip"
 )
 
-SSH_KEY=""           # e.g. ~/.ssh/my_key.pem  — leave empty to use ssh default
-REMOTE_REPO_DIR="~/slay"   # path to repo on remote instances
-LOG_DIR="./logs"           # local dir to collect logs
+SSH_KEY=""                   # e.g. ~/.ssh/my_key.pem — leave empty for default
+REMOTE_REPO_DIR="~/slay"     # path to repo on remote instances
 
-# ── Attention types — one per host (4 ablations) ─────────────────────
+# ── Attention types — one per host ───────────────────────────────────
 ATTENTION_TYPES=(
     "yat"
     "standard"
@@ -53,12 +56,10 @@ GRAD_ACCUM=4
 TOTAL_STEPS=15000
 NUM_GPUS=8
 
-# ── W&B (loaded from .env locally, forwarded as env vars over SSH) ────
+# ── Load W&B credentials from .env ───────────────────────────────────
 source "$(dirname "$0")/../.env" 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────────────
-mkdir -p "$LOG_DIR"
-
 SSH_OPTS="-o StrictHostKeyChecking=no -o BatchMode=yes"
 if [[ -n "$SSH_KEY" ]]; then
     SSH_OPTS="$SSH_OPTS -i $SSH_KEY"
@@ -69,29 +70,7 @@ if [[ ${#HOSTS[@]} -ne ${#ATTENTION_TYPES[@]} ]]; then
     exit 1
 fi
 
-echo "Launching ${#HOSTS[@]} ablation jobs..."
-echo ""
-
-PIDS=()
-
-for i in "${!HOSTS[@]}"; do
-    HOST="${HOSTS[$i]}"
-    ATTN="${ATTENTION_TYPES[$i]}"
-    RUN_NAME="ablation_${ATTN}_$(date +%Y%m%d_%H%M%S)"
-    LOG_FILE="$LOG_DIR/${ATTN}.log"
-
-    echo "  [$((i+1))/${#HOSTS[@]}] $HOST  →  --attention $ATTN  (log: $LOG_FILE)"
-
-    ssh $SSH_OPTS "$HOST" bash -s -- \
-        "$REMOTE_REPO_DIR" "$ATTN" "$RUN_NAME" \
-        "$CONTEXT_LEN" "$EMBED_DIM" "$N_LAYERS" "$N_HEADS" \
-        "$LR" "$BATCH_SIZE" "$GRAD_ACCUM" "$TOTAL_STEPS" "$NUM_GPUS" \
-        "${WANDB_API_KEY:-}" "${WANDB_ENTITY:-}" "${WANDB_PROJECT:-}" \
-        > "$LOG_FILE" 2>&1 &
-
-    PIDS+=($!)
-done
-
+# ── Write the remote runner script ───────────────────────────────────
 cat << 'REMOTE_SCRIPT' > /tmp/_slay_remote.sh
 #!/usr/bin/env bash
 set -euo pipefail
@@ -102,76 +81,63 @@ export WANDB_API_KEY="${13}"
 export WANDB_ENTITY="${14}"
 export WANDB_PROJECT="${15}"
 
+SESSION="slay_${ATTN}"
+
 cd "$REPO_DIR"
 source .venv/bin/activate 2>/dev/null || true
 
-deepspeed --num_gpus="$NUM_GPUS" main.py \
-    --attention "$ATTN" \
-    --context-len "$CONTEXT_LEN" \
-    --embed-dim "$EMBED_DIM" \
-    --n-layers "$N_LAYERS" \
-    --n-heads "$N_HEADS" \
-    --lr "$LR" \
-    --batch-size "$BATCH_SIZE" \
-    --gradient-accumulation-steps "$GRAD_ACCUM" \
-    --total-steps "$TOTAL_STEPS" \
-    --run-name "$RUN_NAME"
+# Kill any existing session with the same name
+tmux kill-session -t "$SESSION" 2>/dev/null || true
+
+# Launch inside tmux — job survives SSH disconnection
+tmux new-session -d -s "$SESSION" bash -c "
+    cd $REPO_DIR
+    source .venv/bin/activate 2>/dev/null || true
+    export WANDB_API_KEY='${13}'
+    export WANDB_ENTITY='${14}'
+    export WANDB_PROJECT='${15}'
+    deepspeed --num_gpus=$NUM_GPUS main.py \
+        --attention $ATTN \
+        --context-len $CONTEXT_LEN \
+        --embed-dim $EMBED_DIM \
+        --n-layers $N_LAYERS \
+        --n-heads $N_HEADS \
+        --lr $LR \
+        --batch-size $BATCH_SIZE \
+        --gradient-accumulation-steps $GRAD_ACCUM \
+        --total-steps $TOTAL_STEPS \
+        --run-name $RUN_NAME \
+    2>&1 | tee ~/slay_${ATTN}.log; exec bash
+"
+
+echo "Job launched in tmux session '$SESSION'"
+echo "To monitor: ssh <host> then: tmux attach -t $SESSION"
 REMOTE_SCRIPT
 
-# Re-launch with the here-doc script piped properly
-# (relaunch below using the temp script approach)
-# Kill the background jobs started above (they were placeholders)
-for PID in "${PIDS[@]}"; do
-    kill "$PID" 2>/dev/null || true
-done
-PIDS=()
-
-echo ""
-echo "Dispatching remote scripts..."
+echo "Dispatching ${#HOSTS[@]} ablation jobs..."
 echo ""
 
 for i in "${!HOSTS[@]}"; do
     HOST="${HOSTS[$i]}"
     ATTN="${ATTENTION_TYPES[$i]}"
     RUN_NAME="ablation_${ATTN}_$(date +%Y%m%d_%H%M%S)"
-    LOG_FILE="$LOG_DIR/${ATTN}.log"
 
-    # Copy the remote script, then execute it with args
     scp $SSH_OPTS /tmp/_slay_remote.sh "${HOST}:/tmp/_slay_remote.sh" > /dev/null 2>&1
 
     ssh $SSH_OPTS "$HOST" bash /tmp/_slay_remote.sh \
         "$REMOTE_REPO_DIR" "$ATTN" "$RUN_NAME" \
         "$CONTEXT_LEN" "$EMBED_DIM" "$N_LAYERS" "$N_HEADS" \
         "$LR" "$BATCH_SIZE" "$GRAD_ACCUM" "$TOTAL_STEPS" "$NUM_GPUS" \
-        "${WANDB_API_KEY:-}" "${WANDB_ENTITY:-}" "${WANDB_PROJECT:-}" \
-        > "$LOG_FILE" 2>&1 &
+        "${WANDB_API_KEY:-}" "${WANDB_ENTITY:-}" "${WANDB_PROJECT:-}"
 
-    PIDS+=($!)
-    echo "  [$((i+1))/${#HOSTS[@]}] Dispatched: $HOST → --attention $ATTN  (pid=${PIDS[-1]}, log=$LOG_FILE)"
+    echo "  [$((i+1))/${#HOSTS[@]}] $HOST → --attention $ATTN  (tmux: slay_${ATTN})"
 done
 
 echo ""
-echo "All jobs launched. Waiting for completion..."
-echo "Follow logs with: tail -f $LOG_DIR/*.log"
+echo "All jobs launched in tmux sessions. Safe to close your laptop."
 echo ""
-
-# Wait for all and report status
-FAILED=0
-for i in "${!PIDS[@]}"; do
-    PID="${PIDS[$i]}"
-    ATTN="${ATTENTION_TYPES[$i]}"
-    if wait "$PID"; then
-        echo "  ✓ $ATTN — done"
-    else
-        echo "  ✗ $ATTN — FAILED (check $LOG_DIR/${ATTN}.log)"
-        FAILED=$((FAILED + 1))
-    fi
-done
-
+echo "To check on a job:"
+echo "  ssh <host>"
+echo "  tmux attach -t slay_<attention>    # e.g. tmux attach -t slay_yat"
 echo ""
-if [[ $FAILED -eq 0 ]]; then
-    echo "All ${#HOSTS[@]} ablations completed successfully."
-else
-    echo "$FAILED/${#HOSTS[@]} ablations failed."
-    exit 1
-fi
+echo "Logs are also saved to ~/slay_<attention>.log on each instance."
