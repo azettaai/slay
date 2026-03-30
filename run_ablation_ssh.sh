@@ -19,10 +19,10 @@ set -euo pipefail
 
 # ── Instances & attention types (one per host) ────────────────────────
 HOSTS=(
-    "ubuntu@185.216.20.59"
-    "ubuntu@38.128.233.103"
-    "ubuntu@38.128.233.144"
-    "ubuntu@38.128.233.111"
+    "ubuntu@38.128.233.231"
+    "ubuntu@38.128.233.233"
+    "ubuntu@38.128.233.249"
+    "ubuntu@38.128.233.148"
 )
 
 ATTENTION_TYPES=(
