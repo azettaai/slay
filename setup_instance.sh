@@ -50,8 +50,8 @@ HF_TOKEN="${HF_TOKEN:-}" python3 -c "
 import os
 os.environ['HF_TOKEN'] = '${HF_TOKEN:-}'
 from datasets import load_dataset
-print('  Downloading wikitext...')
-load_dataset('wikitext', 'wikitext-103-v1', split='validation')
+print('  Downloading wikitext-2...')
+load_dataset('Salesforce/wikitext', 'wikitext-2-raw-v1', split='validation')
 print('  Done.')
 "
 

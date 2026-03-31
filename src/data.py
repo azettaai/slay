@@ -71,11 +71,19 @@ def get_eval_loader(context_len, batch_size):
     """Create evaluation dataloader from WikiText-2."""
     tokenizer = AutoTokenizer.from_pretrained("gpt2")
     # Using a small subset for speed in demo; use larger split for paper
-    ds = load_dataset(
-        "Salesforce/wikitext",
-        "wikitext-2-raw-v1",
-        split="validation",
-    )
+    try:
+        ds = load_dataset(
+            "Salesforce/wikitext",
+            "wikitext-2-raw-v1",
+            split="validation",
+            local_files_only=True,
+        )
+    except Exception:
+        ds = load_dataset(
+            "Salesforce/wikitext",
+            "wikitext-2-raw-v1",
+            split="validation",
+        )
     enc = tokenizer("\n\n".join(ds["text"]), return_tensors="pt")
     data = enc.input_ids[0]
     
