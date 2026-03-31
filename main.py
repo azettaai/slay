@@ -281,10 +281,13 @@ def main():
         # Initialize wandb with config
         if config['use_wandb']:
             run_name = config['run_name'] or f"{config['attention_type']}_{int(time.time())}"
+            wandb_resume_id = config.get('wandb_resume_id')
             wandb.init(
                 project=config['wandb_project'],
                 entity="irf-sic",
                 name=run_name,
+                id=wandb_resume_id or None,
+                resume="allow" if wandb_resume_id else None,
                 config=experiment_config
             )
             
@@ -320,6 +323,7 @@ def main():
     if config.get('resume_from'):
         _, client_state = model_engine.load_checkpoint(config['resume_from'])
         start_step = client_state.get('step', 0)
+        config['wandb_resume_id'] = client_state.get('wandb_run_id')
         if rank == 0:
             print(f"Resumed from checkpoint: {config['resume_from']} (step {start_step})")
 
@@ -431,7 +435,7 @@ def main():
 
         # CHECKPOINTING
         if step % config['save_interval'] == 0:
-            client_state = {'step': step, 'config': config}
+            client_state = {'step': step, 'config': config, 'wandb_run_id': wandb.run.id if config['use_wandb'] else None}
             model_engine.save_checkpoint(config['checkpoint_dir'], tag=f"step_{step}", client_state=client_state)
 
         if step >= config['total_steps']:
