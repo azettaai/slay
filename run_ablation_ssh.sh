@@ -69,7 +69,9 @@ export WANDB_ENTITY="${WANDB_ENTITY:-}"
 export WANDB_PROJECT="${WANDB_PROJECT:-}"
 export HF_TOKEN="${HF_TOKEN:-}"
 cd ~/slay
-git pull origin master
+git fetch origin
+git checkout slay-ablation-ICML-rebuttal
+git pull origin slay-ablation-ICML-rebuttal
 deepspeed --num_gpus=${NUM_GPUS} main.py \\
     --attention ${ATTN} \\
     --context-len ${CONTEXT_LEN} \\
