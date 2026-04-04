@@ -18,7 +18,7 @@ DEFAULT_CONFIG = {
     'save_interval': 1000,
     'total_steps': 20000,  # Increased for more significant training (~10B tokens)
     'warmup_steps': 2000,  # LR warmup steps (~10% of total_steps)
-    'wandb_project': 'slay-bert-base-fineweb',
+    'wandb_project': 'SLAY_Ablation_350M',
     'num_rff_features': 64,
     'num_prf_features': 16,
     'num_poly_features': 8,

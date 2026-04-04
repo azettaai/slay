@@ -1,3 +1,4 @@
+.DS_Store
 __pycache__/
 *.py[cod]
 *$py.class
@@ -7,3 +8,4 @@ venv/
 .venv/
 .venv312/
 env/
+.env
