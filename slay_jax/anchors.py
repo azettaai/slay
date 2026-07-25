@@ -40,6 +40,15 @@ class SLAYFeatureState(NamedTuple):
     weights: jax.Array
 
 
+class FlatJointSLAYState(NamedTuple):
+    """Frozen positive joint samples with one feature axis J."""
+
+    anchors: jax.Array  # [num_layers, J, head_dim]
+    omega: jax.Array  # [num_layers, num_heads, head_dim, J]
+    scales: jax.Array  # [num_layers, J], Exp(rate=2+epsilon)
+    denominator_constant: jax.Array
+
+
 def _laguerre_rule(num_quadrature: int, denominator_constant: float) -> tuple[np.ndarray, np.ndarray]:
     if num_quadrature < 1:
         raise ValueError("num_quadrature must be positive")
@@ -86,6 +95,46 @@ def create_feature_state(
     )
 
 
+def create_flat_joint_feature_state(
+    *,
+    seed: int,
+    num_layers: int,
+    num_heads: int,
+    head_dim: int,
+    feature_dim: int,
+    epsilon: float = 1e-6,
+    dtype: jnp.dtype = jnp.float32,
+) -> FlatJointSLAYState:
+    """Jointly sample anchor, Laplace scale, and PRF once per feature."""
+    if min(num_layers, num_heads, head_dim, feature_dim) < 1:
+        raise ValueError("all dimensions must be positive")
+    anchor_key, omega_key, scale_key = jax.random.split(
+        jax.random.PRNGKey(seed), 3
+    )
+    anchors = jax.random.normal(
+        anchor_key, (num_layers, feature_dim, head_dim), dtype=dtype
+    )
+    anchors /= jnp.maximum(
+        jnp.linalg.norm(anchors, axis=-1, keepdims=True),
+        jnp.finfo(dtype).tiny,
+    )
+    omega = jax.random.normal(
+        omega_key,
+        (num_layers, num_heads, head_dim, feature_dim),
+        dtype=dtype,
+    )
+    constant = jnp.asarray(2.0 + epsilon, dtype=dtype)
+    scales = jax.random.exponential(
+        scale_key, (num_layers, feature_dim), dtype=dtype
+    ) / constant
+    return FlatJointSLAYState(
+        anchors=anchors,
+        omega=omega,
+        scales=scales,
+        denominator_constant=constant,
+    )
+
+
 def save_feature_state(
     path: str | Path,
     state: SLAYFeatureState,
@@ -122,5 +171,43 @@ def load_feature_state(path: str | Path) -> tuple[SLAYFeatureState, dict]:
             omega=jnp.asarray(data["omega"]),
             nodes=jnp.asarray(data["nodes"]),
             weights=jnp.asarray(data["weights"]),
+        )
+    return state, metadata
+
+
+def save_flat_joint_feature_state(
+    path: str | Path,
+    state: FlatJointSLAYState,
+    *,
+    seed: int,
+    epsilon: float,
+) -> None:
+    """Checkpoint joint samples so no random state is regenerated on load."""
+    metadata = {
+        "version": FEATURE_STATE_VERSION,
+        "seed": int(seed),
+        "epsilon": float(epsilon),
+        "feature_policy": "joint_anchor_laplace_scale_gaussian_prf",
+    }
+    np.savez_compressed(
+        Path(path),
+        anchors=np.asarray(state.anchors),
+        omega=np.asarray(state.omega),
+        scales=np.asarray(state.scales),
+        denominator_constant=np.asarray(state.denominator_constant),
+        metadata=np.asarray(json.dumps(metadata)),
+    )
+
+
+def load_flat_joint_feature_state(
+    path: str | Path,
+) -> tuple[FlatJointSLAYState, dict]:
+    with np.load(Path(path), allow_pickle=False) as data:
+        metadata = json.loads(str(data["metadata"]))
+        state = FlatJointSLAYState(
+            anchors=jnp.asarray(data["anchors"]),
+            omega=jnp.asarray(data["omega"]),
+            scales=jnp.asarray(data["scales"]),
+            denominator_constant=jnp.asarray(data["denominator_constant"]),
         )
     return state, metadata

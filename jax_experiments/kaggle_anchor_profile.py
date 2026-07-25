@@ -39,6 +39,24 @@ def features(x, anchors, omega, nodes, weights):
     return fused.reshape(*x.shape[:-1], -1)
 
 
+def flat_joint_features(x, anchors, omega, scales, denominator_constant):
+    """Jointly sample anchor, Laplace scale, and PRF in J positive features."""
+    x = normalize(x)
+    polynomial = jnp.square(jnp.einsum("bhtd,jd->bhtj", x, anchors))
+    projection = jnp.einsum("bhtd,hdj->bhtj", x, omega)
+    exponent = jnp.clip(
+        jnp.sqrt(2.0 * scales[None, None, None, :]) * projection
+        - scales[None, None, None, :],
+        -10.0,
+        10.0,
+    )
+    return (
+        polynomial
+        * jnp.exp(exponent)
+        / jnp.sqrt(denominator_constant * anchors.shape[0])
+    )
+
+
 def causal(qf, kf, value):
     qf, kf, value = (jnp.moveaxis(x, 2, 0) for x in (qf, kf, value))
     batch, heads, feature_dim = qf.shape[1:]
@@ -116,6 +134,9 @@ def main():
     profile_module = os.environ.get("PROFILE_MODULE", "0") == "1"
     profile_backward = os.environ.get("PROFILE_BACKWARD", "0") == "1"
     profile_performer = os.environ.get("PROFILE_PERFORMER", "0") == "1"
+    profile_exact = os.environ.get("PROFILE_EXACT", "0") == "1"
+    profile_paired = os.environ.get("PROFILE_PAIRED", "0") == "1"
+    joint_features = int(os.environ.get("JOINT_FEATURES", "32"))
     performer_features = int(os.environ.get("PERFORMER_FEATURES", "64"))
     key = jax.random.key(seed)
     rows = []
@@ -138,6 +159,24 @@ def main():
             anchors /= jnp.linalg.norm(anchors, axis=-1, keepdims=True)
             omega = jax.random.normal(
                 omega_key, (quadrature, heads, head_dim, prf_dim)
+            )
+            flat_key, key = jax.random.split(key)
+            flat_anchor_key, flat_omega_key, flat_scale_key = jax.random.split(
+                flat_key, 3
+            )
+            flat_anchors = jax.random.normal(
+                flat_anchor_key, (joint_features, head_dim)
+            )
+            flat_anchors /= jnp.linalg.norm(
+                flat_anchors, axis=-1, keepdims=True
+            )
+            flat_omega = jax.random.normal(
+                flat_omega_key, (heads, head_dim, joint_features)
+            )
+            denominator_constant = 2.0 + 1e-6
+            flat_scales = (
+                jax.random.exponential(flat_scale_key, (joint_features,))
+                / denominator_constant
             )
 
             def forward_scan(q_arg, k_arg, v_arg):
@@ -183,6 +222,12 @@ def main():
             backward_metrics = None
             performer_module_metrics = None
             performer_backward_metrics = None
+            softmax_module_metrics = None
+            softmax_backward_metrics = None
+            exact_yat_module_metrics = None
+            exact_yat_backward_metrics = None
+            flat_module_metrics = None
+            flat_backward_metrics = None
             if profile_module:
                 parameter_key, key = jax.random.split(key)
                 qkv_key, output_key = jax.random.split(parameter_key)
@@ -238,6 +283,42 @@ def main():
                 def module_parallel(params, inputs):
                     return module(params, inputs, causal_parallel_prefix)
 
+                def flat_module(params, inputs, recurrence_fn):
+                    qkv = jnp.einsum("bte,ef->btf", inputs, params["qkv"])
+                    q_value, k_value, v_value = jnp.split(qkv, 3, axis=-1)
+
+                    def split_heads(value):
+                        return value.reshape(
+                            batch, length, heads, head_dim
+                        ).transpose(0, 2, 1, 3)
+
+                    def map_features(value):
+                        return flat_joint_features(
+                            split_heads(value),
+                            flat_anchors,
+                            flat_omega,
+                            flat_scales,
+                            denominator_constant,
+                        )
+
+                    attended = recurrence_fn(
+                        map_features(q_value),
+                        map_features(k_value),
+                        split_heads(v_value),
+                    )
+                    merged = attended.transpose(0, 2, 1, 3).reshape(
+                        batch, length, embed_dim
+                    )
+                    return jnp.einsum(
+                        "bte,ef->btf", merged, params["output"]
+                    )
+
+                def flat_scan(params, inputs):
+                    return flat_module(params, inputs, causal)
+
+                def flat_parallel(params, inputs):
+                    return flat_module(params, inputs, causal_parallel_prefix)
+
                 module_metrics = {
                     "streaming_scan": measure(
                         module_scan, (parameters, x), warmup, repeats
@@ -246,6 +327,15 @@ def main():
                         module_parallel, (parameters, x), warmup, repeats
                     ),
                 }
+                if profile_paired:
+                    flat_module_metrics = {
+                        "streaming_scan": measure(
+                            flat_scan, (parameters, x), warmup, repeats
+                        ),
+                        "parallel_prefix": measure(
+                            flat_parallel, (parameters, x), warmup, repeats
+                        ),
+                    }
                 if profile_backward:
                     def backward(fn, params, inputs):
                         return jax.value_and_grad(
@@ -267,6 +357,25 @@ def main():
                             repeats,
                         ),
                     }
+                    if profile_paired:
+                        flat_backward_metrics = {
+                            "streaming_scan": measure(
+                                lambda p, value: backward(
+                                    flat_scan, p, value
+                                ),
+                                (parameters, x),
+                                warmup,
+                                repeats,
+                            ),
+                            "parallel_prefix": measure(
+                                lambda p, value: backward(
+                                    flat_parallel, p, value
+                                ),
+                                (parameters, x),
+                                warmup,
+                                repeats,
+                            ),
+                        }
                 if profile_performer:
                     performer_key, key = jax.random.split(key)
                     performer_projection = jax.random.normal(
@@ -361,6 +470,116 @@ def main():
                                 repeats,
                             ),
                         }
+                if profile_exact:
+                    def exact_module(params, inputs, kind):
+                        qkv = jnp.einsum(
+                            "bte,ef->btf", inputs, params["qkv"]
+                        )
+                        q_value, k_value, v_value = jnp.split(
+                            qkv, 3, axis=-1
+                        )
+
+                        def split_heads(value):
+                            return value.reshape(
+                                batch, length, heads, head_dim
+                            ).transpose(0, 2, 1, 3)
+
+                        q_heads = split_heads(q_value)
+                        k_heads = split_heads(k_value)
+                        v_heads = split_heads(v_value)
+                        if kind == "softmax":
+                            scores = jnp.einsum(
+                                "bhtd,bhsd->bhts", q_heads, k_heads
+                            ) / jnp.sqrt(head_dim)
+                            scores = jnp.where(
+                                jnp.tril(
+                                    jnp.ones(
+                                        (length, length), dtype=jnp.bool_
+                                    )
+                                ),
+                                scores,
+                                jnp.finfo(scores.dtype).min,
+                            )
+                            attention_weights = jax.nn.softmax(
+                                scores, axis=-1
+                            )
+                        elif kind == "spherical_yat":
+                            q_normalized = normalize(q_heads)
+                            k_normalized = normalize(k_heads)
+                            similarity = jnp.einsum(
+                                "bhtd,bhsd->bhts",
+                                q_normalized,
+                                k_normalized,
+                            )
+                            attention_weights = jnp.square(similarity) / (
+                                2.0 + 1e-6 - 2.0 * similarity
+                            )
+                            attention_weights = jnp.where(
+                                jnp.tril(
+                                    jnp.ones(
+                                        (length, length), dtype=jnp.bool_
+                                    )
+                                ),
+                                attention_weights,
+                                0.0,
+                            )
+                            attention_weights /= jnp.maximum(
+                                jnp.sum(
+                                    attention_weights,
+                                    axis=-1,
+                                    keepdims=True,
+                                ),
+                                1e-6,
+                            )
+                        else:
+                            raise ValueError(kind)
+                        attended = jnp.einsum(
+                            "bhts,bhsd->bhtd",
+                            attention_weights,
+                            v_heads,
+                        )
+                        merged = attended.transpose(0, 2, 1, 3).reshape(
+                            batch, length, embed_dim
+                        )
+                        return jnp.einsum(
+                            "bte,ef->btf", merged, params["output"]
+                        )
+
+                    softmax_forward = lambda p, value: exact_module(
+                        p, value, "softmax"
+                    )
+                    exact_yat_forward = lambda p, value: exact_module(
+                        p, value, "spherical_yat"
+                    )
+                    softmax_module_metrics = measure(
+                        softmax_forward,
+                        (parameters, x),
+                        warmup,
+                        repeats,
+                    )
+                    exact_yat_module_metrics = measure(
+                        exact_yat_forward,
+                        (parameters, x),
+                        warmup,
+                        repeats,
+                    )
+                    if profile_backward:
+                        softmax_backward_metrics = measure(
+                            lambda p, value: backward(
+                                softmax_forward, p, value
+                            ),
+                            (parameters, x),
+                            warmup,
+                            repeats,
+                        )
+                        exact_yat_backward_metrics = measure(
+                            lambda p, value: backward(
+                                exact_yat_forward, p, value
+                            ),
+                            (parameters, x),
+                            warmup,
+                            repeats,
+                        )
             row = {
                 "length": length,
                 "poly_dim": poly_dim,
@@ -379,6 +598,15 @@ def main():
                 ),
                 "performer_module_forward": performer_module_metrics,
                 "performer_module_forward_backward": performer_backward_metrics,
+                "softmax_module_forward": softmax_module_metrics,
+                "softmax_module_forward_backward": softmax_backward_metrics,
+                "exact_yat_module_forward": exact_yat_module_metrics,
+                "exact_yat_module_forward_backward": exact_yat_backward_metrics,
+                "flat_joint_feature_dim": (
+                    joint_features if profile_paired else None
+                ),
+                "flat_joint_module_forward": flat_module_metrics,
+                "flat_joint_module_forward_backward": flat_backward_metrics,
             }
             rows.append(row)
             print(json.dumps(row), flush=True)
@@ -387,6 +615,7 @@ def main():
         "jax_version": jax.__version__,
         "backend": jax.default_backend(),
         "devices": [str(device) for device in jax.devices()],
+        "device_kinds": [device.device_kind for device in jax.devices()],
         "environment": {
             "lengths": lengths,
             "poly_dims": poly_dims,
@@ -401,6 +630,9 @@ def main():
             "profile_module": profile_module,
             "profile_backward": profile_backward,
             "profile_performer": profile_performer,
+            "profile_exact": profile_exact,
+            "profile_flat_joint": profile_paired,
+            "joint_features": joint_features,
             "performer_features": performer_features,
         },
         "rows": rows,

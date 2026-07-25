@@ -7,7 +7,7 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
-from .anchors import SLAYFeatureState
+from .anchors import FlatJointSLAYState, SLAYFeatureState
 
 
 def _normalize(x: jax.Array, eps: float = 1e-6) -> jax.Array:
@@ -441,6 +441,65 @@ def slay_features(
     with jax.named_scope("tensor_feature_fusion"):
         fused = jnp.einsum("bhtp,rbhtm->bhtrpm", polynomial, prf)
         return fused.reshape(*x.shape[:-1], -1)
+
+
+@partial(jax.named_call, name="flat_joint_slay_feature_map")
+def flat_joint_slay_features(
+    x: jax.Array,
+    state: FlatJointSLAYState,
+    *,
+    layer_index: int,
+    exp_clip: float = 10.0,
+) -> jax.Array:
+    """Positive joint anchor/Laplace/PRF features [B,H,T,J]."""
+    x_norm = _normalize(x)
+    anchors = state.anchors[layer_index]
+    omega = state.omega[layer_index]
+    scales = state.scales[layer_index]
+    polynomial = jnp.square(
+        jnp.einsum("bhtd,jd->bhtj", x_norm, anchors)
+    )
+    projection = jnp.einsum("bhtd,hdj->bhtj", x_norm, omega)
+    exponent = jnp.clip(
+        jnp.sqrt(2.0 * scales[None, None, None, :]) * projection
+        - scales[None, None, None, :],
+        -exp_clip,
+        exp_clip,
+    )
+    return (
+        polynomial
+        * jnp.exp(exponent)
+        / jnp.sqrt(state.denominator_constant * anchors.shape[0])
+    )
+
+
+def streaming_flat_joint_slay_attention(
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    state: FlatJointSLAYState,
+    *,
+    layer_index: int = 0,
+    epsilon: float = 1e-6,
+    remat_scan_body: bool = True,
+) -> jax.Array:
+    feature = partial(
+        flat_joint_slay_features,
+        state=state,
+        layer_index=layer_index,
+    )
+    # Drop the time axis because streaming_causal_attention maps single tokens.
+    token_feature = lambda token: feature(token[:, :, None, :])[:, :, 0, :]
+    return streaming_causal_attention(
+        q,
+        k,
+        v,
+        q_feature_fn=token_feature,
+        k_feature_fn=token_feature,
+        feature_dim=state.anchors.shape[1],
+        eps=epsilon,
+        remat_scan_body=remat_scan_body,
+    )
 
 
 def attention(

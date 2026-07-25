@@ -5,20 +5,43 @@ import jax.numpy as jnp
 import numpy as np
 import unittest
 
-from slay_jax.anchors import create_feature_state
+from slay_jax.anchors import (
+    create_feature_state,
+    create_flat_joint_feature_state,
+)
 from slay_jax.attention import (
     bidirectional_linear_attention,
     blockwise_anchor_slay_attention,
     causal_linear_attention,
     chunked_causal_linear_attention,
+    flat_joint_slay_features,
     parallel_prefix_causal_attention,
     parallel_anchor_slay_attention,
     slay_features,
     streaming_slay_attention,
+    streaming_flat_joint_slay_attention,
 )
 
 
 class AttentionTest(unittest.TestCase):
+    def test_flat_joint_streaming_matches_materialized_features(self):
+        state = create_flat_joint_feature_state(
+            seed=9,
+            num_layers=1,
+            num_heads=2,
+            head_dim=4,
+            feature_dim=7,
+        )
+        q = jax.random.normal(jax.random.PRNGKey(10), (1, 2, 9, 4))
+        k = jax.random.normal(jax.random.PRNGKey(11), (1, 2, 9, 4))
+        v = jax.random.normal(jax.random.PRNGKey(12), (1, 2, 9, 3))
+        qf = flat_joint_slay_features(q, state, layer_index=0)
+        kf = flat_joint_slay_features(k, state, layer_index=0)
+        expected = causal_linear_attention(qf, kf, v)
+        actual = streaming_flat_joint_slay_attention(q, k, v, state)
+        np.testing.assert_allclose(actual, expected, rtol=2e-5, atol=2e-5)
+        self.assertTrue(np.all(np.asarray(qf) >= 0.0))
+
     def test_scan_matches_materialized_causal_prefix(self):
         qf = jax.random.uniform(jax.random.PRNGKey(0), (2, 2, 7, 5)) + 0.1
         kf = jax.random.uniform(jax.random.PRNGKey(1), (2, 2, 7, 5)) + 0.1

@@ -6,10 +6,13 @@ import unittest
 from pathlib import Path
 
 from slay_jax.anchors import (
+    create_flat_joint_feature_state,
     ANCHOR_POLICY,
     create_feature_state,
+    load_flat_joint_feature_state,
     load_feature_state,
     save_feature_state,
+    save_flat_joint_feature_state,
 )
 
 
@@ -26,6 +29,42 @@ def _state(seed: int):
 
 
 class AnchorStateTest(unittest.TestCase):
+    def test_flat_joint_state_round_trip(self):
+        state = create_flat_joint_feature_state(
+            seed=8,
+            num_layers=1,
+            num_heads=2,
+            head_dim=4,
+            feature_dim=9,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "flat.npz"
+            save_flat_joint_feature_state(
+                path, state, seed=8, epsilon=1e-6
+            )
+            restored, metadata = load_flat_joint_feature_state(path)
+        np.testing.assert_array_equal(state.anchors, restored.anchors)
+        np.testing.assert_array_equal(state.omega, restored.omega)
+        np.testing.assert_array_equal(state.scales, restored.scales)
+        self.assertEqual(metadata["seed"], 8)
+
+    def test_flat_joint_state_is_deterministic_and_single_axis(self):
+        kwargs = dict(
+            seed=7,
+            num_layers=2,
+            num_heads=3,
+            head_dim=4,
+            feature_dim=11,
+        )
+        first = create_flat_joint_feature_state(**kwargs)
+        repeat = create_flat_joint_feature_state(**kwargs)
+        np.testing.assert_array_equal(first.anchors, repeat.anchors)
+        np.testing.assert_array_equal(first.omega, repeat.omega)
+        np.testing.assert_array_equal(first.scales, repeat.scales)
+        self.assertEqual(first.anchors.shape, (2, 11, 4))
+        self.assertEqual(first.omega.shape, (2, 3, 4, 11))
+        self.assertTrue(np.all(np.asarray(first.scales) >= 0.0))
+
     def test_anchor_generation_is_deterministic_and_seeded(self):
         first = _state(17)
         repeat = _state(17)
