@@ -141,6 +141,7 @@ def run_one(
     steps: int,
     batch_size: int,
     learning_rate: float,
+    attention_learning_rate_multiplier: float,
     seed: int,
     eval_batches: int,
 ) -> dict:
@@ -152,7 +153,21 @@ def run_one(
         max_length=task.sequence_length,
         config=config,
     )
-    optimizer = optax.adamw(learning_rate, weight_decay=1e-4)
+    def parameter_label(path, _):
+        keys = {getattr(entry, "key", None) for entry in path}
+        return "attention" if keys.intersection({"qkv", "out"}) else "base"
+
+    labels = jax.tree_util.tree_map_with_path(parameter_label, params)
+    optimizer = optax.partition(
+        {
+            "base": optax.adamw(learning_rate, weight_decay=1e-4),
+            "attention": optax.adamw(
+                learning_rate * attention_learning_rate_multiplier,
+                weight_decay=1e-4,
+            ),
+        },
+        labels,
+    )
     optimizer_state = optimizer.init(params)
 
     def loss_function(current_params, batch):
@@ -209,6 +224,8 @@ def run_one(
         "seed": seed,
         "steps": steps,
         "batch_size": batch_size,
+        "base_learning_rate": learning_rate,
+        "attention_learning_rate_multiplier": attention_learning_rate_multiplier,
         "chance_accuracy": task.chance_accuracy,
         "final_train_loss": training_losses[-1],
         "eval_accuracy_mean": float(np.mean(accuracies)),
@@ -246,6 +263,12 @@ def main():
     parser.add_argument("--steps", type=int, default=500)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--learning-rate", type=float, default=3e-3)
+    parser.add_argument(
+        "--slay-attention-lr-multiplier",
+        type=float,
+        default=2.0,
+        help="LR multiplier for SLAY QKV/output projections; frozen features are unaffected.",
+    )
     parser.add_argument("--eval-batches", type=int, default=8)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--embed-dim", type=int, default=32)
@@ -283,6 +306,11 @@ def main():
                 steps=args.steps,
                 batch_size=args.batch_size,
                 learning_rate=args.learning_rate,
+                attention_learning_rate_multiplier=(
+                    args.slay_attention_lr_multiplier
+                    if attention_kind == "slay"
+                    else 1.0
+                ),
                 seed=args.seed,
                 eval_batches=args.eval_batches,
             )
