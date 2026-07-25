@@ -132,6 +132,116 @@ def main():
     fig.savefig(args.output_dir / "p100-anchor-stage-breakdown.png", dpi=180)
     plt.close(fig)
 
+    matched_rows = [
+        row
+        for row in rows
+        if row.get("performer_module_forward") is not None
+    ]
+    if matched_rows:
+        matched_rows.sort(key=lambda row: row["length"])
+        contexts = [row["length"] for row in matched_rows]
+        fig, (forward_axis, backward_axis) = plt.subplots(
+            1, 2, figsize=(10.5, 4.2)
+        )
+        for axis, metric, ylabel in (
+            (
+                forward_axis,
+                "module_forward",
+                "Full-module forward median (ms)",
+            ),
+            (
+                backward_axis,
+                "module_forward_backward",
+                "Full-module forward+backward median (ms)",
+            ),
+        ):
+            axis.plot(
+                contexts,
+                [
+                    row[metric]["parallel_prefix"]["median_ms"]
+                    for row in matched_rows
+                ],
+                marker="o",
+                label=f"Anchor SLAY, F={matched_rows[0]['feature_dim']}",
+            )
+            performer_metric = (
+                "performer_module_forward"
+                if metric == "module_forward"
+                else "performer_module_forward_backward"
+            )
+            axis.plot(
+                contexts,
+                [
+                    row[performer_metric]["parallel_prefix"]["median_ms"]
+                    for row in matched_rows
+                ],
+                marker="s",
+                label=(
+                    "Performer, "
+                    f"F={matched_rows[0]['performer_feature_dim']}"
+                ),
+            )
+            axis.set(xlabel="Context length", ylabel=ylabel)
+            axis.set_xticks(contexts)
+            axis.grid(alpha=0.25)
+            axis.legend(frameon=False)
+        fig.tight_layout()
+        fig.savefig(
+            args.output_dir / "p100-matched-f64-latency.png", dpi=180
+        )
+        plt.close(fig)
+
+        fig, (forward_axis, backward_axis) = plt.subplots(
+            1, 2, figsize=(10.5, 4.2)
+        )
+        for axis, metric, ylabel in (
+            (
+                forward_axis,
+                "module_forward",
+                "Forward compiler temporary memory (MiB)",
+            ),
+            (
+                backward_axis,
+                "module_forward_backward",
+                "Forward+backward temporary memory (MiB)",
+            ),
+        ):
+            axis.plot(
+                contexts,
+                [
+                    mib(row[metric]["parallel_prefix"])
+                    for row in matched_rows
+                ],
+                marker="o",
+                label=f"Anchor SLAY, F={matched_rows[0]['feature_dim']}",
+            )
+            performer_metric = (
+                "performer_module_forward"
+                if metric == "module_forward"
+                else "performer_module_forward_backward"
+            )
+            axis.plot(
+                contexts,
+                [
+                    mib(row[performer_metric]["parallel_prefix"])
+                    for row in matched_rows
+                ],
+                marker="s",
+                label=(
+                    "Performer, "
+                    f"F={matched_rows[0]['performer_feature_dim']}"
+                ),
+            )
+            axis.set(xlabel="Context length", ylabel=ylabel)
+            axis.set_xticks(contexts)
+            axis.grid(alpha=0.25)
+            axis.legend(frameon=False)
+        fig.tight_layout()
+        fig.savefig(
+            args.output_dir / "p100-matched-f64-memory.png", dpi=180
+        )
+        plt.close(fig)
+
 
 if __name__ == "__main__":
     main()

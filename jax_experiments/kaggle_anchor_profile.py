@@ -115,6 +115,8 @@ def main():
     seed = int(os.environ.get("SEED", "42"))
     profile_module = os.environ.get("PROFILE_MODULE", "0") == "1"
     profile_backward = os.environ.get("PROFILE_BACKWARD", "0") == "1"
+    profile_performer = os.environ.get("PROFILE_PERFORMER", "0") == "1"
+    performer_features = int(os.environ.get("PERFORMER_FEATURES", "64"))
     key = jax.random.key(seed)
     rows = []
 
@@ -179,6 +181,8 @@ def main():
                 )
             module_metrics = None
             backward_metrics = None
+            performer_module_metrics = None
+            performer_backward_metrics = None
             if profile_module:
                 parameter_key, key = jax.random.split(key)
                 qkv_key, output_key = jax.random.split(parameter_key)
@@ -263,6 +267,100 @@ def main():
                             repeats,
                         ),
                     }
+                if profile_performer:
+                    performer_key, key = jax.random.split(key)
+                    performer_projection = jax.random.normal(
+                        performer_key,
+                        (heads, head_dim, performer_features),
+                    )
+
+                    def performer_module(params, inputs, recurrence_fn):
+                        qkv = jnp.einsum(
+                            "bte,ef->btf", inputs, params["qkv"]
+                        )
+                        q_value, k_value, v_value = jnp.split(
+                            qkv, 3, axis=-1
+                        )
+
+                        def split_heads(value):
+                            return value.reshape(
+                                batch, length, heads, head_dim
+                            ).transpose(0, 2, 1, 3)
+
+                        q_heads = split_heads(q_value)
+                        k_heads = split_heads(k_value)
+                        v_heads = split_heads(v_value)
+                        q_features = (
+                            jax.nn.relu(
+                                jnp.einsum(
+                                    "bhtd,hdf->bhtf",
+                                    q_heads,
+                                    performer_projection,
+                                )
+                            )
+                            + 1e-4
+                        )
+                        k_features = (
+                            jax.nn.relu(
+                                jnp.einsum(
+                                    "bhtd,hdf->bhtf",
+                                    k_heads,
+                                    performer_projection,
+                                )
+                            )
+                            + 1e-4
+                        )
+                        attended = recurrence_fn(
+                            q_features, k_features, v_heads
+                        )
+                        merged = attended.transpose(0, 2, 1, 3).reshape(
+                            batch, length, embed_dim
+                        )
+                        return jnp.einsum(
+                            "bte,ef->btf", merged, params["output"]
+                        )
+
+                    def performer_scan(params, inputs):
+                        return performer_module(params, inputs, causal)
+
+                    def performer_parallel(params, inputs):
+                        return performer_module(
+                            params, inputs, causal_parallel_prefix
+                        )
+
+                    performer_module_metrics = {
+                        "streaming_scan": measure(
+                            performer_scan,
+                            (parameters, x),
+                            warmup,
+                            repeats,
+                        ),
+                        "parallel_prefix": measure(
+                            performer_parallel,
+                            (parameters, x),
+                            warmup,
+                            repeats,
+                        ),
+                    }
+                    if profile_backward:
+                        performer_backward_metrics = {
+                            "streaming_scan": measure(
+                                lambda p, value: backward(
+                                    performer_scan, p, value
+                                ),
+                                (parameters, x),
+                                warmup,
+                                repeats,
+                            ),
+                            "parallel_prefix": measure(
+                                lambda p, value: backward(
+                                    performer_parallel, p, value
+                                ),
+                                (parameters, x),
+                                warmup,
+                                repeats,
+                            ),
+                        }
             row = {
                 "length": length,
                 "poly_dim": poly_dim,
@@ -276,6 +374,11 @@ def main():
                 "end_to_end_forward": end_to_end,
                 "module_forward": module_metrics,
                 "module_forward_backward": backward_metrics,
+                "performer_feature_dim": (
+                    performer_features if profile_performer else None
+                ),
+                "performer_module_forward": performer_module_metrics,
+                "performer_module_forward_backward": performer_backward_metrics,
             }
             rows.append(row)
             print(json.dumps(row), flush=True)
@@ -297,6 +400,8 @@ def main():
             "seed": seed,
             "profile_module": profile_module,
             "profile_backward": profile_backward,
+            "profile_performer": profile_performer,
+            "performer_features": performer_features,
         },
         "rows": rows,
         "note": "Feature and recurrence timings are isolated diagnostics and need not sum to the fused end-to-end graph.",
