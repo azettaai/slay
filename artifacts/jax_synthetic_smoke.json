@@ -1,0 +1,123 @@
+{
+  "backend": "cpu",
+  "jax_version": "0.9.1",
+  "model_config": {
+    "embed_dim": 32,
+    "num_heads": 2,
+    "num_layers": 2,
+    "ff_dim": 64,
+    "performer_features": 32,
+    "poly_dim": 4,
+    "prf_dim": 4,
+    "num_quadrature": 1,
+    "anchor_seed": 2026
+  },
+  "anchor_protocol": {
+    "distribution": "iid standard Gaussian, L2-normalized to unit sphere",
+    "scope": "independent per layer, shared across heads",
+    "lifetime": "generated once before training and frozen",
+    "seed": 2026
+  },
+  "results": [
+    {
+      "task": "first_token_recall",
+      "attention": "softmax",
+      "seed": 0,
+      "steps": 200,
+      "batch_size": 32,
+      "chance_accuracy": 0.125,
+      "final_train_loss": 0.0037126445677131414,
+      "eval_accuracy_mean": 1.0,
+      "eval_accuracy_std_across_batches": 0.0,
+      "compile_and_first_train_step_ms": 278.85175007395446,
+      "steady_train_step_median_ms": 1.4423750108107924,
+      "loss_curve_every_25_steps": [
+        3.0499398708343506,
+        0.1180046945810318,
+        0.01815619133412838,
+        0.012274584732949734,
+        0.009225212968885899,
+        0.006237523630261421,
+        0.005299753043800592,
+        0.0037506050430238247
+      ],
+      "solved_at_95_percent": true,
+      "slay_feature_dim": null
+    },
+    {
+      "task": "first_token_recall",
+      "attention": "slay",
+      "seed": 0,
+      "steps": 200,
+      "batch_size": 32,
+      "chance_accuracy": 0.125,
+      "final_train_loss": 0.0034911425318568945,
+      "eval_accuracy_mean": 1.0,
+      "eval_accuracy_std_across_batches": 0.0,
+      "compile_and_first_train_step_ms": 394.73916694987565,
+      "steady_train_step_median_ms": 2.0444999681785703,
+      "loss_curve_every_25_steps": [
+        2.8605010509490967,
+        0.1063317358493805,
+        0.01736268401145935,
+        0.011143242008984089,
+        0.008193699643015862,
+        0.005738463252782822,
+        0.004948758985847235,
+        0.0035721128806471825
+      ],
+      "solved_at_95_percent": true,
+      "slay_feature_dim": 16
+    },
+    {
+      "task": "induction_recall",
+      "attention": "softmax",
+      "seed": 0,
+      "steps": 200,
+      "batch_size": 32,
+      "chance_accuracy": 0.125,
+      "final_train_loss": 0.0038411577697843313,
+      "eval_accuracy_mean": 1.0,
+      "eval_accuracy_std_across_batches": 0.0,
+      "compile_and_first_train_step_ms": 299.26379094831645,
+      "steady_train_step_median_ms": 1.2784580467268825,
+      "loss_curve_every_25_steps": [
+        2.779369592666626,
+        0.2599099576473236,
+        0.0273808091878891,
+        0.013303116895258427,
+        0.009352358058094978,
+        0.006901347078382969,
+        0.005508774425834417,
+        0.004637503996491432
+      ],
+      "solved_at_95_percent": true,
+      "slay_feature_dim": null
+    },
+    {
+      "task": "induction_recall",
+      "attention": "slay",
+      "seed": 0,
+      "steps": 200,
+      "batch_size": 32,
+      "chance_accuracy": 0.125,
+      "final_train_loss": 0.003869617823511362,
+      "eval_accuracy_mean": 1.0,
+      "eval_accuracy_std_across_batches": 0.0,
+      "compile_and_first_train_step_ms": 389.6095419768244,
+      "steady_train_step_median_ms": 1.8906670156866312,
+      "loss_curve_every_25_steps": [
+        2.622056007385254,
+        0.23831330239772797,
+        0.026774166151881218,
+        0.013208883814513683,
+        0.009564914740622044,
+        0.00698099797591567,
+        0.00582187669351697,
+        0.0045713200233876705
+      ],
+      "solved_at_95_percent": true,
+      "slay_feature_dim": 16
+    }
+  ]
+}

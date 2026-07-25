@@ -1,0 +1,270 @@
+{
+  "backend": "cpu",
+  "devices": [
+    "TFRT_CPU_0"
+  ],
+  "jax_version": "0.9.1",
+  "shape": {
+    "batch": 2,
+    "heads": 2,
+    "length": 64,
+    "head_dim": 16,
+    "slay_feature_dim": 128,
+    "performer_feature_dim": 64
+  },
+  "anchor_generation": {
+    "seed": 17,
+    "generated_once_before_profiling": true,
+    "included_in_timing": false
+  },
+  "results": {
+    "softmax_causal": {
+      "lowering_ms": 6.1193330911919475,
+      "compile_ms": 37.93045901693404,
+      "first_execution_ms": 1.1260409373790026,
+      "steady_state_median_ms": 0.04454149166122079,
+      "steady_state_min_ms": 0.03925000783056021,
+      "steady_state_samples_ms": [
+        0.0694170594215393,
+        0.05591695662587881,
+        0.04900002386420965,
+        0.043208012357354164,
+        0.045749940909445286,
+        0.0421660952270031,
+        0.04745798651129007,
+        0.04333304241299629,
+        0.041708932258188725,
+        0.03925000783056021
+      ],
+      "cost_analysis": {
+        "bytes accessedout{}": 284672.0,
+        "utilization2{}": 2.0,
+        "utilization1{}": 11.0,
+        "bytes accessed2{}": 131072.0,
+        "bytes accessed": 733200.0,
+        "bytes accessed1{}": 246800.0,
+        "transcendentals": 16384.0,
+        "flops": 1187328.0,
+        "bytes accessed0{}": 349184.0,
+        "utilization0{}": 9.0
+      },
+      "memory_analysis": {
+        "argument_size_in_bytes": 49152,
+        "output_size_in_bytes": 16384,
+        "temp_size_in_bytes": 131072,
+        "generated_code_size_in_bytes": 0
+      }
+    },
+    "linear_elu_causal": {
+      "lowering_ms": 9.981750044971704,
+      "compile_ms": 36.14204202312976,
+      "first_execution_ms": 0.22912502754479647,
+      "steady_state_median_ms": 0.04272948717698455,
+      "steady_state_min_ms": 0.03966700751334429,
+      "steady_state_samples_ms": [
+        0.055750017054378986,
+        0.044625019654631615,
+        0.0426670303568244,
+        0.03966700751334429,
+        0.04349998198449612,
+        0.0427919439971447,
+        0.04245794843882322,
+        0.041792052797973156,
+        0.04316703416407108,
+        0.0414170790463686
+      ],
+      "cost_analysis": {
+        "utilization1{}": 18.0,
+        "bytes accessed1{}": 135952.0,
+        "bytes accessedout{}": 124301.0,
+        "utilization6{}": 2.0,
+        "bytes accessed2{}": 65804.0,
+        "utilization4{}": 7.0,
+        "bytes accessed4{}": 20.0,
+        "utilization5{}": 3.0,
+        "utilization2{}": 10.0,
+        "bytes accessed0{}": 103452.0,
+        "bytes accessed3{}": 280.0,
+        "transcendentals": 8192.0,
+        "bytes accessed": 233169.0,
+        "bytes accessed5{}": 4.0,
+        "flops": 37126.0,
+        "utilization3{}": 6.0,
+        "utilization0{}": 31.0
+      },
+      "memory_analysis": {
+        "argument_size_in_bytes": 49152,
+        "output_size_in_bytes": 16384,
+        "temp_size_in_bytes": 54212,
+        "generated_code_size_in_bytes": 0
+      }
+    },
+    "performer_relu_causal": {
+      "lowering_ms": 8.426584070548415,
+      "compile_ms": 42.273416998796165,
+      "first_execution_ms": 0.9596250019967556,
+      "steady_state_median_ms": 0.0841040164232254,
+      "steady_state_min_ms": 0.0788751058280468,
+      "steady_state_samples_ms": [
+        0.11012493632733822,
+        0.09054096881300211,
+        0.08716690354049206,
+        0.08699996396899223,
+        0.0890000956133008,
+        0.0806670868769288,
+        0.08120806887745857,
+        0.07983308751136065,
+        0.0788751058280468,
+        0.07954193279147148
+      ],
+      "cost_analysis": {
+        "bytes accessed5{}": 4.0,
+        "utilization3{}": 6.0,
+        "utilization5{}": 3.0,
+        "utilization4{}": 7.0,
+        "bytes accessed0{}": 364572.0,
+        "bytes accessed1{}": 313616.0,
+        "flops": 1131334.0,
+        "bytes accessedout{}": 511629.0,
+        "utilization0{}": 35.0,
+        "bytes accessed2{}": 268.0,
+        "bytes accessed4{}": 20.0,
+        "utilization6{}": 2.0,
+        "utilization1{}": 16.0,
+        "bytes accessed": 928977.0,
+        "bytes accessed3{}": 1048.0,
+        "utilization2{}": 6.0
+      },
+      "memory_analysis": {
+        "argument_size_in_bytes": 49152,
+        "output_size_in_bytes": 16384,
+        "temp_size_in_bytes": 296004,
+        "generated_code_size_in_bytes": 0
+      }
+    },
+    "slay_causal": {
+      "lowering_ms": 15.481792041100562,
+      "compile_ms": 66.61062501370907,
+      "first_execution_ms": 1.2712909374386072,
+      "steady_state_median_ms": 0.15377096133306623,
+      "steady_state_min_ms": 0.14225009363144636,
+      "steady_state_samples_ms": [
+        0.15774997882544994,
+        0.14825002290308475,
+        0.1517079072073102,
+        0.14225009363144636,
+        0.1467500114813447,
+        0.1593329943716526,
+        0.20620902068912983,
+        0.1704589230939746,
+        0.15583401545882225,
+        0.14616595581173897
+      ],
+      "cost_analysis": {
+        "utilization1{}": 24.0,
+        "bytes accessedout{}": 795277.0,
+        "bytes accessed2{}": 300.0,
+        "utilization4{}": 7.0,
+        "bytes accessed": 1423617.0,
+        "bytes accessed0{}": 503844.0,
+        "bytes accessed5{}": 4.0,
+        "utilization2{}": 10.0,
+        "bytes accessed3{}": 2072.0,
+        "bytes accessed1{}": 154912.0,
+        "transcendentals": 8704.0,
+        "utilization3{}": 6.0,
+        "bytes accessed4{}": 20.0,
+        "utilization0{}": 45.0,
+        "utilization6{}": 2.0,
+        "flops": 558662.0,
+        "utilization5{}": 3.0
+      },
+      "memory_analysis": {
+        "argument_size_in_bytes": 49152,
+        "output_size_in_bytes": 16384,
+        "temp_size_in_bytes": 460920,
+        "generated_code_size_in_bytes": 0
+      }
+    },
+    "slay_feature_map_only": {
+      "lowering_ms": 5.3949159337207675,
+      "compile_ms": 39.157207938842475,
+      "first_execution_ms": 0.7474590092897415,
+      "steady_state_median_ms": 0.047854031436145306,
+      "steady_state_min_ms": 0.038041966035962105,
+      "steady_state_samples_ms": [
+        0.05362497176975012,
+        0.06195798050612211,
+        0.041458988562226295,
+        0.04812492989003658,
+        0.03858294803649187,
+        0.047625042498111725,
+        0.038041966035962105,
+        0.048083020374178886,
+        0.03933301195502281,
+        0.04824995994567871
+      ],
+      "cost_analysis": {
+        "utilization2{}": 2.0,
+        "transcendentals": 4352.0,
+        "bytes accessedout{}": 205824.0,
+        "bytes accessed0{}": 75784.0,
+        "utilization0{}": 8.0,
+        "flops": 262144.0,
+        "bytes accessed2{}": 16.0,
+        "utilization1{}": 7.0,
+        "bytes accessed1{}": 67076.0,
+        "bytes accessed": 332312.0
+      },
+      "memory_analysis": {
+        "argument_size_in_bytes": 16384,
+        "output_size_in_bytes": 131072,
+        "temp_size_in_bytes": 40960,
+        "generated_code_size_in_bytes": 0
+      }
+    },
+    "slay_scan_only": {
+      "lowering_ms": 6.333208060823381,
+      "compile_ms": 52.847708109766245,
+      "first_execution_ms": 0.3039590083062649,
+      "steady_state_median_ms": 0.11333299335092306,
+      "steady_state_min_ms": 0.10562501847743988,
+      "steady_state_samples_ms": [
+        0.12225005775690079,
+        0.10791700333356857,
+        0.11695805005729198,
+        0.10562501847743988,
+        0.11908297892659903,
+        0.10970793664455414,
+        0.10862504132091999,
+        0.10708300396800041,
+        0.12087507639080286,
+        0.1225409796461463
+      ],
+      "cost_analysis": {
+        "utilization3{}": 6.0,
+        "bytes accessedout{}": 383629.0,
+        "utilization0{}": 31.0,
+        "bytes accessed1{}": 37136.0,
+        "utilization2{}": 6.0,
+        "bytes accessed0{}": 335900.0,
+        "utilization4{}": 7.0,
+        "bytes accessed2{}": 268.0,
+        "bytes accessed3{}": 2072.0,
+        "bytes accessed4{}": 20.0,
+        "bytes accessed": 758993.0,
+        "utilization1{}": 10.0,
+        "flops": 34374.0,
+        "bytes accessed5{}": 4.0,
+        "utilization6{}": 2.0,
+        "utilization5{}": 3.0
+      },
+      "memory_analysis": {
+        "argument_size_in_bytes": 278528,
+        "output_size_in_bytes": 16384,
+        "temp_size_in_bytes": 315844,
+        "generated_code_size_in_bytes": 0
+      }
+    }
+  }
+}

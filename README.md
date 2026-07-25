@@ -2,6 +2,20 @@
 
 A PyTorch implementation of spherical linearized attention mechanisms with various polynomial kernel approximations for efficient transformer models.
 
+## Canonical JAX path
+
+Reviewer-facing SLAY experiments now live in the pure JAX package
+[`slay_jax/`](slay_jax/) with runnable scripts under
+[`jax_experiments/`](jax_experiments/). Anchors and PRF projections are generated
+once from explicit seeds and frozen, causal attention uses `jax.lax.scan`
+without materializing prefix states, and timing separates XLA compilation from
+synchronized steady-state execution.
+
+See [`docs/JAX_CANONICAL_IMPLEMENTATION.md`](docs/JAX_CANONICAL_IMPLEMENTATION.md)
+for the anchor contract, corrected synthetic-task protocols, profiling rules,
+and local commands. The older PyTorch code remains a reproduction reference for
+the submitted numbers.
+
 ## Overview
 
 This repository contains implementations of:
