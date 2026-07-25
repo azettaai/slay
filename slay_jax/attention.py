@@ -80,12 +80,109 @@ def causal_linear_attention(
         k_state = k_state + k_acc
         numerator = jnp.einsum("bhf,bhfd->bhd", q_acc, kv_state)
         denominator = jnp.einsum("bhf,bhf->bh", q_acc, k_state)
-        output = numerator / jnp.maximum(denominator[..., None], eps)
+        safe_denominator = jnp.where(
+            jnp.abs(denominator) >= eps,
+            denominator,
+            jnp.where(denominator >= 0.0, eps, -eps),
+        )
+        output = numerator / safe_denominator[..., None]
         return (kv_state, k_state), output.astype(v.dtype)
 
     scan_step = jax.checkpoint(step) if remat_scan_body else step
     _, output = jax.lax.scan(scan_step, initial, (q_time, k_time, v_time))
     return jnp.moveaxis(output, 0, 2)
+
+
+def chunked_causal_linear_attention(
+    q_features: jax.Array,
+    k_features: jax.Array,
+    v: jax.Array,
+    *,
+    block_size: int = 128,
+    eps: float = 1e-6,
+) -> jax.Array:
+    """Causal linear attention with parallel prefix work inside each block.
+
+    This is algebraically identical to ``causal_linear_attention``. It keeps
+    only the cross-block recurrent state while evaluating each block with
+    vectorized cumulative sums, reducing sequential scan depth from T to
+    ceil(T / block_size).
+    """
+    if block_size < 1:
+        raise ValueError("block_size must be positive")
+    batch, heads, length, feature_dim = q_features.shape
+    value_dim = v.shape[-1]
+    padded_length = ((length + block_size - 1) // block_size) * block_size
+    padding = padded_length - length
+
+    def pad_time(array):
+        return jnp.pad(array, ((0, 0), (0, 0), (0, padding), (0, 0)))
+
+    q_blocks = pad_time(q_features).reshape(
+        batch, heads, -1, block_size, feature_dim
+    )
+    k_blocks = pad_time(k_features).reshape(
+        batch, heads, -1, block_size, feature_dim
+    )
+    v_blocks = pad_time(v).reshape(batch, heads, -1, block_size, value_dim)
+    q_blocks, k_blocks, v_blocks = (
+        jnp.moveaxis(array, 2, 0) for array in (q_blocks, k_blocks, v_blocks)
+    )
+    initial = (
+        jnp.zeros((batch, heads, feature_dim, value_dim), dtype=jnp.float32),
+        jnp.zeros((batch, heads, feature_dim), dtype=jnp.float32),
+    )
+
+    def step(carry, inputs):
+        kv_state, k_state = carry
+        q_block, k_block, v_block = (
+            array.astype(jnp.float32) for array in inputs
+        )
+        kv_increments = jnp.einsum("bhcf,bhcd->bhcfd", k_block, v_block)
+        kv_prefix = jnp.cumsum(kv_increments, axis=2) + kv_state[:, :, None]
+        k_prefix = jnp.cumsum(k_block, axis=2) + k_state[:, :, None]
+        numerator = jnp.einsum("bhcf,bhcfd->bhcd", q_block, kv_prefix)
+        denominator = jnp.einsum("bhcf,bhcf->bhc", q_block, k_prefix)
+        safe_denominator = jnp.where(
+            jnp.abs(denominator) >= eps,
+            denominator,
+            jnp.where(denominator >= 0.0, eps, -eps),
+        )
+        output = numerator / safe_denominator[..., None]
+        return (kv_prefix[:, :, -1], k_prefix[:, :, -1]), output.astype(v.dtype)
+
+    _, output_blocks = jax.lax.scan(step, initial, (q_blocks, k_blocks, v_blocks))
+    output = jnp.moveaxis(output_blocks, 0, 2).reshape(
+        batch, heads, padded_length, value_dim
+    )
+    return output[:, :, :length]
+
+
+def parallel_prefix_causal_attention(
+    q_features: jax.Array,
+    k_features: jax.Array,
+    v: jax.Array,
+    *,
+    eps: float = 1e-6,
+) -> jax.Array:
+    """Causal prefix evaluation that trades temporary memory for parallelism.
+
+    This is algebraically identical to the streaming scan. It materializes the
+    [B,H,T,F,D] prefix state, so it is only selected when accelerator profiling
+    shows a useful speedup and the measured memory fits the target device.
+    """
+    kv_prefix = jnp.cumsum(
+        jnp.einsum("bhtf,bhtd->bhtfd", k_features, v), axis=2
+    )
+    k_prefix = jnp.cumsum(k_features, axis=2)
+    numerator = jnp.einsum("bhtf,bhtfd->bhtd", q_features, kv_prefix)
+    denominator = jnp.einsum("bhtf,bhtf->bht", q_features, k_prefix)
+    safe_denominator = jnp.where(
+        jnp.abs(denominator) >= eps,
+        denominator,
+        jnp.where(denominator >= 0.0, eps, -eps),
+    )
+    return numerator / safe_denominator[..., None]
 
 
 def bidirectional_linear_attention(
@@ -219,6 +316,44 @@ def streaming_slay_attention(
         feature_dim=feature_dim,
         eps=epsilon,
         remat_scan_body=remat_scan_body,
+    )
+
+
+def blockwise_anchor_slay_attention(
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    state: SLAYFeatureState,
+    *,
+    layer_index: int = 0,
+    block_size: int = 32,
+    epsilon: float = 1e-6,
+) -> jax.Array:
+    """Exact submitted anchor feature map with block-parallel causal prefixes."""
+    return chunked_causal_linear_attention(
+        slay_features(q, state, layer_index=layer_index),
+        slay_features(k, state, layer_index=layer_index),
+        v,
+        block_size=block_size,
+        eps=epsilon,
+    )
+
+
+def parallel_anchor_slay_attention(
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    state: SLAYFeatureState,
+    *,
+    layer_index: int = 0,
+    epsilon: float = 1e-6,
+) -> jax.Array:
+    """Submitted anchor map with a fully parallel, memory-heavy prefix."""
+    return parallel_prefix_causal_attention(
+        slay_features(q, state, layer_index=layer_index),
+        slay_features(k, state, layer_index=layer_index),
+        v,
+        eps=epsilon,
     )
 
 

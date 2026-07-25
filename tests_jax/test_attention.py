@@ -8,7 +8,11 @@ import unittest
 from slay_jax.anchors import create_feature_state
 from slay_jax.attention import (
     bidirectional_linear_attention,
+    blockwise_anchor_slay_attention,
     causal_linear_attention,
+    chunked_causal_linear_attention,
+    parallel_prefix_causal_attention,
+    parallel_anchor_slay_attention,
     slay_features,
     streaming_slay_attention,
 )
@@ -34,6 +38,22 @@ class AttentionTest(unittest.TestCase):
         first = causal_linear_attention(qf, kf, first_values)
         second = causal_linear_attention(qf, kf, changed_future)
         np.testing.assert_allclose(first[:, :, :3], second[:, :, :3])
+
+    def test_chunked_prefix_matches_token_scan_with_padding(self):
+        qf = jax.random.uniform(jax.random.key(20), (2, 2, 11, 7)) + 0.1
+        kf = jax.random.uniform(jax.random.key(21), (2, 2, 11, 7)) + 0.1
+        v = jax.random.normal(jax.random.key(22), (2, 2, 11, 3))
+        expected = causal_linear_attention(qf, kf, v)
+        actual = chunked_causal_linear_attention(qf, kf, v, block_size=4)
+        np.testing.assert_allclose(actual, expected, rtol=3e-5, atol=3e-5)
+
+    def test_parallel_prefix_matches_token_scan(self):
+        qf = jax.random.uniform(jax.random.key(23), (1, 2, 9, 6)) + 0.1
+        kf = jax.random.uniform(jax.random.key(24), (1, 2, 9, 6)) + 0.1
+        v = jax.random.normal(jax.random.key(25), (1, 2, 9, 4))
+        expected = causal_linear_attention(qf, kf, v)
+        actual = parallel_prefix_causal_attention(qf, kf, v)
+        np.testing.assert_allclose(actual, expected, rtol=3e-5, atol=3e-5)
 
     def test_slay_feature_dimension_and_finiteness(self):
         state = create_feature_state(
@@ -72,6 +92,15 @@ class AttentionTest(unittest.TestCase):
             q, k, v, state, layer_index=0, variant="anchor"
         )
         np.testing.assert_allclose(actual, expected, rtol=3e-5, atol=3e-5)
+
+        blocked = blockwise_anchor_slay_attention(
+            q, k, v, state, layer_index=0, block_size=4
+        )
+        np.testing.assert_allclose(blocked, expected, rtol=3e-5, atol=3e-5)
+        parallel = parallel_anchor_slay_attention(
+            q, k, v, state, layer_index=0
+        )
+        np.testing.assert_allclose(parallel, expected, rtol=3e-5, atol=3e-5)
 
     def test_bidirectional_associative_form_matches_explicit_weights(self):
         qf = jax.random.uniform(jax.random.PRNGKey(6), (1, 2, 5, 4)) + 0.1

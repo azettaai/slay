@@ -26,9 +26,11 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 from slay_jax.anchors import create_feature_state
 from slay_jax.attention import (
+    blockwise_anchor_slay_attention,
     causal_linear_attention,
     exact_softmax_attention,
     exact_spherical_yat_attention,
+    parallel_anchor_slay_attention,
     streaming_cosformer_attention,
     streaming_elementwise_attention,
     streaming_slay_attention,
@@ -42,6 +44,8 @@ METHODS = (
     "cosformer",
     "yat-spherical",
     "yat-performer-anchor",
+    "yat-performer-anchor-blocked",
+    "yat-performer-anchor-parallel",
     "yat-performer-laplace",
     "yat-performer",
 )
@@ -98,6 +102,12 @@ def module_forward(
         attended = exact_spherical_yat_attention(q, k, v, causal=True)
     elif method == "yat-performer-anchor":
         attended = streaming_slay_attention(q, k, v, anchor_state, variant="anchor")
+    elif method == "yat-performer-anchor-blocked":
+        attended = blockwise_anchor_slay_attention(
+            q, k, v, anchor_state, block_size=32
+        )
+    elif method == "yat-performer-anchor-parallel":
+        attended = parallel_anchor_slay_attention(q, k, v, anchor_state)
     elif method == "yat-performer-laplace":
         attended = streaming_slay_attention(q, k, v, compact_state, variant="laplace")
     elif method == "yat-performer":
@@ -180,6 +190,16 @@ def feature_dim(method, config, head_dim):
         "cosformer": 2 * head_dim,
         "yat-spherical": None,
         "yat-performer-anchor": (
+            config["quadrature"]
+            * config["anchor_poly_dim"]
+            * config["anchor_prf_dim"]
+        ),
+        "yat-performer-anchor-blocked": (
+            config["quadrature"]
+            * config["anchor_poly_dim"]
+            * config["anchor_prf_dim"]
+        ),
+        "yat-performer-anchor-parallel": (
             config["quadrature"]
             * config["anchor_poly_dim"]
             * config["anchor_prf_dim"]

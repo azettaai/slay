@@ -1,0 +1,667 @@
+{
+  "jax_version": "0.7.2",
+  "backend": "gpu",
+  "devices": [
+    "cuda:0"
+  ],
+  "environment": {
+    "lengths": [
+      512,
+      1024,
+      2048,
+      4096
+    ],
+    "poly_dims": [
+      32
+    ],
+    "prf_dim": 16,
+    "quadrature": 2,
+    "batch": 1,
+    "heads": 4,
+    "head_dim": 16,
+    "warmup": 2,
+    "repeats": 5,
+    "seed": 42,
+    "profile_module": true,
+    "profile_backward": true
+  },
+  "rows": [
+    {
+      "length": 512,
+      "poly_dim": 32,
+      "prf_dim": 16,
+      "quadrature": 2,
+      "feature_dim": 1024,
+      "feature_construction": {
+        "median_ms": 0.18437799997172988,
+        "min_ms": 0.17834600004107415,
+        "samples_ms": [
+          0.21832200002336322,
+          0.18373700004303828,
+          0.18437799997172988,
+          0.17834600004107415,
+          0.2044970000270041
+        ],
+        "compiler_memory": {
+          "argument_size_in_bytes": 262144,
+          "output_size_in_bytes": 16777232,
+          "temp_size_in_bytes": 1048848
+        }
+      },
+      "causal_recurrence": {
+        "streaming_scan": {
+          "median_ms": 8.71318499997642,
+          "min_ms": 8.646978000001582,
+          "samples_ms": [
+            8.775845999991816,
+            8.71318499997642,
+            8.646978000001582,
+            8.757226000000173,
+            8.64883600002031
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 16908288,
+            "output_size_in_bytes": 131072,
+            "temp_size_in_bytes": 17187896
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 2.515780999999606,
+          "min_ms": 2.4953849999747035,
+          "samples_ms": [
+            2.515780999999606,
+            2.61284999999134,
+            2.5291160000051605,
+            2.4953849999747035,
+            2.496275999988029
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 16908288,
+            "output_size_in_bytes": 131072,
+            "temp_size_in_bytes": 151519232
+          }
+        }
+      },
+      "end_to_end_forward": {
+        "streaming_scan": {
+          "median_ms": 10.05391499995767,
+          "min_ms": 9.982259000025806,
+          "samples_ms": [
+            10.135797000032198,
+            10.082412000031127,
+            10.05391499995767,
+            9.982259000025806,
+            10.051992000001064
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 393216,
+            "output_size_in_bytes": 131072,
+            "temp_size_in_bytes": 17564472
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 2.8058749999786414,
+          "min_ms": 2.7820849999784514,
+          "samples_ms": [
+            2.9496680000420383,
+            2.8058749999786414,
+            2.840890000015861,
+            2.7910609999821645,
+            2.7820849999784514
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 393216,
+            "output_size_in_bytes": 131072,
+            "temp_size_in_bytes": 153092368
+          }
+        }
+      },
+      "module_forward": {
+        "streaming_scan": {
+          "median_ms": 10.167910999996366,
+          "min_ms": 10.02599299999929,
+          "samples_ms": [
+            10.190201000000343,
+            10.173049000002266,
+            10.144089999982953,
+            10.02599299999929,
+            10.167910999996366
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 196608,
+            "output_size_in_bytes": 131072,
+            "temp_size_in_bytes": 17958712
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 2.943482999967273,
+          "min_ms": 2.8404169999589612,
+          "samples_ms": [
+            2.8404169999589612,
+            2.9036920000180544,
+            3.228053999976055,
+            2.943482999967273,
+            2.971527999989121
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 196608,
+            "output_size_in_bytes": 131072,
+            "temp_size_in_bytes": 153093664
+          }
+        }
+      },
+      "module_forward_backward": {
+        "streaming_scan": {
+          "median_ms": 29.248472999995556,
+          "min_ms": 28.90619400000105,
+          "samples_ms": [
+            29.248472999995556,
+            29.425647999971716,
+            29.207981000013206,
+            29.28605099998549,
+            28.90619400000105
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 196608,
+            "output_size_in_bytes": 196644,
+            "temp_size_in_bytes": 179821152
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 8.911920000002738,
+          "min_ms": 8.872628000005989,
+          "samples_ms": [
+            8.981404999985898,
+            9.025119000000359,
+            8.911920000002738,
+            8.872628000005989,
+            8.890250000035849
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 196608,
+            "output_size_in_bytes": 196644,
+            "temp_size_in_bytes": 304878368
+          }
+        }
+      }
+    },
+    {
+      "length": 1024,
+      "poly_dim": 32,
+      "prf_dim": 16,
+      "quadrature": 2,
+      "feature_dim": 1024,
+      "feature_construction": {
+        "median_ms": 0.28303999999934604,
+        "min_ms": 0.2668839999842021,
+        "samples_ms": [
+          0.2866170000288548,
+          0.30160500000420143,
+          0.2668839999842021,
+          0.27361300004713485,
+          0.28303999999934604
+        ],
+        "compiler_memory": {
+          "argument_size_in_bytes": 524288,
+          "output_size_in_bytes": 33554448,
+          "temp_size_in_bytes": 2097424
+        }
+      },
+      "causal_recurrence": {
+        "streaming_scan": {
+          "median_ms": 17.045273999997335,
+          "min_ms": 16.99670399995057,
+          "samples_ms": [
+            17.045273999997335,
+            17.17228199998999,
+            17.149046000042745,
+            16.99670399995057,
+            17.02725699999519
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 33816576,
+            "output_size_in_bytes": 262144,
+            "temp_size_in_bytes": 34096184
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 4.6558239999967554,
+          "min_ms": 4.541972999959398,
+          "samples_ms": [
+            4.547625999975935,
+            4.541972999959398,
+            4.660675999957675,
+            4.6850220000465015,
+            4.6558239999967554
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 33816576,
+            "output_size_in_bytes": 262144,
+            "temp_size_in_bytes": 303038464
+          }
+        }
+      },
+      "end_to_end_forward": {
+        "streaming_scan": {
+          "median_ms": 18.388225000023795,
+          "min_ms": 18.311380999989524,
+          "samples_ms": [
+            18.38592100000369,
+            18.42327600002136,
+            18.388225000023795,
+            18.311380999989524,
+            18.542515999968145
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 786432,
+            "output_size_in_bytes": 262144,
+            "temp_size_in_bytes": 35128120
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 5.122505999963778,
+          "min_ms": 5.025977000002513,
+          "samples_ms": [
+            5.122505999963778,
+            5.21163199999819,
+            5.1024699999970835,
+            5.025977000002513,
+            5.128138000031868
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 786432,
+            "output_size_in_bytes": 262144,
+            "temp_size_in_bytes": 306184464
+          }
+        }
+      },
+      "module_forward": {
+        "streaming_scan": {
+          "median_ms": 18.40802399999575,
+          "min_ms": 18.388512000001356,
+          "samples_ms": [
+            18.388512000001356,
+            18.40802399999575,
+            18.432894000000033,
+            18.395286000043143,
+            18.423776000020098
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 327680,
+            "output_size_in_bytes": 262144,
+            "temp_size_in_bytes": 35915576
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 5.149172000017188,
+          "min_ms": 5.098428999986027,
+          "samples_ms": [
+            5.098428999986027,
+            5.177338000009968,
+            5.143392000036329,
+            5.149172000017188,
+            5.205223000018577
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 327680,
+            "output_size_in_bytes": 262144,
+            "temp_size_in_bytes": 306185760
+          }
+        }
+      },
+      "module_forward_backward": {
+        "streaming_scan": {
+          "median_ms": 54.33856199999809,
+          "min_ms": 54.327197999953114,
+          "samples_ms": [
+            54.327384999965034,
+            54.33856199999809,
+            54.37621000004356,
+            54.327197999953114,
+            54.43802299998879
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 327680,
+            "output_size_in_bytes": 327716,
+            "temp_size_in_bytes": 358913888
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 18.30840200000239,
+          "min_ms": 18.256665000023986,
+          "samples_ms": [
+            18.42922999998109,
+            18.344269000010627,
+            18.30840200000239,
+            18.296511000016835,
+            18.256665000023986
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 327680,
+            "output_size_in_bytes": 327716,
+            "temp_size_in_bytes": 609768736
+          }
+        }
+      }
+    },
+    {
+      "length": 2048,
+      "poly_dim": 32,
+      "prf_dim": 16,
+      "quadrature": 2,
+      "feature_dim": 1024,
+      "feature_construction": {
+        "median_ms": 0.38981099999091384,
+        "min_ms": 0.37603499998795087,
+        "samples_ms": [
+          0.4123649999883128,
+          0.38981099999091384,
+          0.38084600004140157,
+          0.403157000050669,
+          0.37603499998795087
+        ],
+        "compiler_memory": {
+          "argument_size_in_bytes": 1048576,
+          "output_size_in_bytes": 67108880,
+          "temp_size_in_bytes": 4194576
+        }
+      },
+      "causal_recurrence": {
+        "streaming_scan": {
+          "median_ms": 30.60044099999004,
+          "min_ms": 30.56960999998637,
+          "samples_ms": [
+            30.652545999998893,
+            30.65287599997646,
+            30.60044099999004,
+            30.56960999998637,
+            30.584026000042286
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 67633152,
+            "output_size_in_bytes": 524288,
+            "temp_size_in_bytes": 67912760
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 8.863859999962642,
+          "min_ms": 8.853226999974595,
+          "samples_ms": [
+            8.940242999983639,
+            8.863859999962642,
+            8.857181999985642,
+            8.853226999974595,
+            8.880841000006967
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 67633152,
+            "output_size_in_bytes": 524288,
+            "temp_size_in_bytes": 606076928
+          }
+        }
+      },
+      "end_to_end_forward": {
+        "streaming_scan": {
+          "median_ms": 36.2475250000216,
+          "min_ms": 36.10872600000903,
+          "samples_ms": [
+            36.11545699999397,
+            36.37784699998292,
+            36.2475250000216,
+            36.10872600000903,
+            36.36025000002974
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 1572864,
+            "output_size_in_bytes": 524288,
+            "temp_size_in_bytes": 69206840
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 9.713709000038762,
+          "min_ms": 9.682578999957059,
+          "samples_ms": [
+            9.700103000000126,
+            9.682578999957059,
+            9.745917999964604,
+            9.73511300003338,
+            9.713709000038762
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 1572864,
+            "output_size_in_bytes": 524288,
+            "temp_size_in_bytes": 612368656
+          }
+        }
+      },
+      "module_forward": {
+        "streaming_scan": {
+          "median_ms": 30.676269000025513,
+          "min_ms": 30.586203000041223,
+          "samples_ms": [
+            30.713980999962587,
+            30.68554599997242,
+            30.6321400000229,
+            30.586203000041223,
+            30.676269000025513
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 589824,
+            "output_size_in_bytes": 524288,
+            "temp_size_in_bytes": 70535224
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 9.78234199999406,
+          "min_ms": 9.770080000009784,
+          "samples_ms": [
+            9.770080000009784,
+            9.818810000012945,
+            9.78019699999777,
+            9.844171999986884,
+            9.78234199999406
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 589824,
+            "output_size_in_bytes": 524288,
+            "temp_size_in_bytes": 612369680
+          }
+        }
+      },
+      "module_forward_backward": {
+        "streaming_scan": {
+          "median_ms": 108.93962300002613,
+          "min_ms": 108.90197899999521,
+          "samples_ms": [
+            108.92311499998186,
+            108.90197899999521,
+            109.04142099997216,
+            108.93962300002613,
+            109.17191499999035
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 589824,
+            "output_size_in_bytes": 589860,
+            "temp_size_in_bytes": 717559648
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 34.84203699997579,
+          "min_ms": 34.75041799998735,
+          "samples_ms": [
+            34.84203699997579,
+            35.10562899998604,
+            34.75041799998735,
+            34.98255699997799,
+            34.79848199998514
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 589824,
+            "output_size_in_bytes": 589860,
+            "temp_size_in_bytes": 1757483024
+          }
+        }
+      }
+    },
+    {
+      "length": 4096,
+      "poly_dim": 32,
+      "prf_dim": 16,
+      "quadrature": 2,
+      "feature_dim": 1024,
+      "feature_construction": {
+        "median_ms": 0.6029189999594564,
+        "min_ms": 0.5873559999827194,
+        "samples_ms": [
+          0.7798260000413393,
+          0.6029189999594564,
+          0.5968000000393658,
+          0.5873559999827194,
+          0.6395040000484187
+        ],
+        "compiler_memory": {
+          "argument_size_in_bytes": 2097152,
+          "output_size_in_bytes": 134217744,
+          "temp_size_in_bytes": 8388880
+        }
+      },
+      "causal_recurrence": {
+        "streaming_scan": {
+          "median_ms": 60.94870300000821,
+          "min_ms": 60.749301999976524,
+          "samples_ms": [
+            60.94870300000821,
+            60.854348999953345,
+            60.749301999976524,
+            60.95262899998488,
+            60.974404000035065
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 135266304,
+            "output_size_in_bytes": 1048576,
+            "temp_size_in_bytes": 135545912
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 17.55056299998614,
+          "min_ms": 17.536035999967226,
+          "samples_ms": [
+            17.59377600001244,
+            17.557120999981635,
+            17.55056299998614,
+            17.536035999967226,
+            17.5495729999966
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 135266304,
+            "output_size_in_bytes": 1048576,
+            "temp_size_in_bytes": 1212153856
+          }
+        }
+      },
+      "end_to_end_forward": {
+        "streaming_scan": {
+          "median_ms": 72.19363100000464,
+          "min_ms": 72.12892899997314,
+          "samples_ms": [
+            72.20017800000278,
+            72.12892899997314,
+            72.15648900000815,
+            72.19363100000464,
+            72.31604300000072
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 3145728,
+            "output_size_in_bytes": 1048576,
+            "temp_size_in_bytes": 138412856
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 17.846742999950038,
+          "min_ms": 17.804773999955614,
+          "samples_ms": [
+            17.83698099995945,
+            17.804773999955614,
+            17.854353000018364,
+            17.846742999950038,
+            17.84845000003088
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 3145728,
+            "output_size_in_bytes": 1048576,
+            "temp_size_in_bytes": 1279328528
+          }
+        }
+      },
+      "module_forward": {
+        "streaming_scan": {
+          "median_ms": 60.86191399998597,
+          "min_ms": 60.777717999997094,
+          "samples_ms": [
+            60.965352000039275,
+            60.777717999997094,
+            60.83536399995637,
+            60.86191399998597,
+            60.93216099998244
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 1114112,
+            "output_size_in_bytes": 1048576,
+            "temp_size_in_bytes": 140789816
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 17.84130099997583,
+          "min_ms": 17.800270999998702,
+          "samples_ms": [
+            17.846036999969783,
+            17.800270999998702,
+            17.85035699998616,
+            17.800537999960397,
+            17.84130099997583
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 1114112,
+            "output_size_in_bytes": 1048576,
+            "temp_size_in_bytes": 1224738064
+          }
+        }
+      },
+      "module_forward_backward": {
+        "streaming_scan": {
+          "median_ms": 218.3660199999622,
+          "min_ms": 218.1796140000074,
+          "samples_ms": [
+            218.20772099999886,
+            218.471634000025,
+            218.1796140000074,
+            218.4927409999773,
+            218.3660199999622
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 1114112,
+            "output_size_in_bytes": 1114148,
+            "temp_size_in_bytes": 1434867552
+          }
+        },
+        "parallel_prefix": {
+          "median_ms": 78.42338699998663,
+          "min_ms": 78.34691099998281,
+          "samples_ms": [
+            78.73753299998043,
+            78.42338699998663,
+            78.66209299999127,
+            78.40611299997136,
+            78.34691099998281
+          ],
+          "compiler_memory": {
+            "argument_size_in_bytes": 1114112,
+            "output_size_in_bytes": 1114148,
+            "temp_size_in_bytes": 2437091600
+          }
+        }
+      }
+    }
+  ],
+  "note": "Feature and recurrence timings are isolated diagnostics and need not sum to the fused end-to-end graph."
+}
